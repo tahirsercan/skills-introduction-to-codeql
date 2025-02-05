@@ -56,6 +56,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Tüm commit geçmişini çek
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -65,12 +67,22 @@ jobs:
       - name: Install jscpd
         run: npm install -g jscpd
 
-      - name: Run jscpd on new code
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          since: ${{ github.event.pull_request.base.sha }}
+          until: ${{ github.event.pull_request.head.sha }}
+
+      - name: Run jscpd on changed files
         run: |
-          jscpd \
-          --min-tokens 50 \
-          --threshold 1 \
-          --reporters console \
-          --ignore "**/generated/**" \
-          --since ${{ github.event.pull_request.base.sha }} \
-          --until ${{ github.event.pull_request.head.sha }}
+          if [ -n "${{ steps.changed-files.outputs.all_changed_files }}" ]; then
+            jscpd \
+            --min-tokens 50 \
+            --threshold 1 \
+            --reporters console \
+            --ignore "**/generated/**" \
+            --files "${{ steps.changed-files.outputs.all_changed_files }}"
+          else
+            echo "No files changed. Skipping duplication check."
+          fi
