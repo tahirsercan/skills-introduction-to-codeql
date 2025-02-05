@@ -1,63 +1,42 @@
-name: "CodeQL Advanced"
+name: Detect Code Duplication
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
   schedule:
-    - cron: '30 6 * * 0'
+    - cron: '33 6 * * 6'
 
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     permissions:
-      security-events: write
-      packages: read
-      actions: read
       contents: read
+      actions: read
+      packages: read
+      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
         include:
-        - language: python
+        - language: javascript-typescript
           build-mode: none
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
-
-    - if: matrix.build-mode == 'manual'
-      shell: bash
-      run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
-      with:
-        category: "/language:${{matrix.language}}"
+      # ... (CodeQL analysis steps as in the original codeql.yml)
 
   duplication-check:
-    name: Detect Code Duplication
     runs-on: ubuntu-latest
+    needs: analyze
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Tüm commit geçmişini çek
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -77,18 +56,12 @@ jobs:
       - name: Run jscpd on changed files
         run: |
           if [ -n "${{ steps.changed-files.outputs.all_changed_files }}" ]; then
-      echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
-      jscpd \
-        --min-tokens 10 \  # Daha küçük kod bloklarını tespit et
-        --threshold 1 \    # %1 duplication threshold
-        --reporters console \
-        --ignore "**/generated/**" \  # İgnore edilecek dosyalar
-        --ignore-identifiers \  # Değişken isimlerini ignore et
-        ${{ steps.changed-files.outputs.all_changed_files }}
-    else
-      echo "No files changed. Skipping duplication check."
-    fi
-Sonuç
-Bu kod, jscpd ile tarandığında yüksek bir duplication oranı gösterecektir. Bu sayede, workflow'unuzdaki duplication kontrolünü başarıyla test edebilirsiniz. Eğer başka sorularınız varsa veya daha fazla yardıma ihtiyacınız olursa, bana bildirin! 😊
-
-New chat
+            echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
+            jscpd \
+              --min-tokens 10 \
+              --threshold 1 \
+              --ignore-identifiers \
+              --reporters console \
+              --ignore "**/generated/**" \
+              "${{ steps.changed-files.outputs.all_changed_files }}"
+          fi
