@@ -77,12 +77,15 @@ jobs:
       - name: Run jscpd on changed files
         run: |
           if [ -n "${{ steps.changed-files.outputs.all_changed_files }}" ]; then
-            jscpd \
-            --min-tokens 50 \
-            --threshold 1 \
-            --reporters console \
-            --ignore "**/generated/**" \
-            --files "${{ steps.changed-files.outputs.all_changed_files }}"
+            for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+              echo "Checking duplication in $file"
+              jscpd \
+              --min-tokens 50 \
+              --threshold 1 \
+              --reporters console \
+              --ignore "**/generated/**" \
+              "$file"
+            done
           else
             echo "No files changed. Skipping duplication check."
           fi
